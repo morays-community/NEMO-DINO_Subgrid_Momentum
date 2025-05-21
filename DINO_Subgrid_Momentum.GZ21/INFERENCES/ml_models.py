@@ -6,6 +6,8 @@ sys.path.append('ZB-DINO')
 
 from models.LitParamModel import LitParamModel
 from csvflowdatamodule.CsvDataModule import CsvDataModule
+from scipy import stats
+
 
 from lightning.pytorch.cli import LightningCLI
 
@@ -46,7 +48,7 @@ cli = model_loading(device=device)
 
 # Predictions
 @torch.no_grad()
-def momentum_cnn(u, v, mask_u, mask_v, sampling=True):
+def momentum_cnn(u, v, mask_u, mask_v):
     """ Take as input u and v fields and return forcing fields using GZ (2021)
 
     Param :
@@ -62,7 +64,7 @@ def momentum_cnn(u, v, mask_u, mask_v, sampling=True):
     if Is_None([u, v]):
         return None
     else:
-        global cli, u_scale, v_scale, Su_scale, Sv_scale, device
+        global cli, device
 
         batch = {}
 
@@ -78,34 +80,21 @@ def momentum_cnn(u, v, mask_u, mask_v, sampling=True):
         ret = cli.datamodule.transforms.val.__uncall__(ret)
 
 
-        cvtb = lambda f, mf : einops.rearrange(f.numpy(), ' 1 k i j -> i j k')*mf
+        cvtb = lambda f, mf : einops.rearrange(f.nan_to_num(0.0).numpy(), ' 1 k i j -> i j k')*mf
 
-        return cvtb(ret['SgsU'], mask_u) , cvtb(ret['SgsV'], mask_v)
+        return cvtb(ret['SgsU'], mask_u), cvtb(ret['SgsV'], mask_v)
 
 
 if __name__ == '__main__' :
 
-    b, c, i, j = 1, 2, 100, 200
-    def function_mat_python(b, c, i, j) :
-        return b*0.7 + c*0.1 + i*0.827 + j*0.193
+    k, i, j = 36, 100, 200
+    u = np.random.randn(i, j, k)
+    v = np.random.randn(i, j, k)
+    mask_u = np.ones((i, j, 1))
+    mask_v = np.ones((i, j, 1))
 
-    def create_mat_python(b, c, i, j) :
-        inp = torch.zeros((b,c, i ,j))
-        for bi in range(0,b):
-            for ci in range(0,c) :
-                for ii in range(0,i):
-                    for ji in range(0,j) :
-                        inp[bi, ci, ii, ji] = function_mat_python(bi,ci,ii,ji)
-        return inp
+    sgs_u, sgs_v = momentum_cnn(u, v, mask_u, mask_v)
+    print('SgsU shape :', sgs_u.shape)
+    print('SgsU describe :', stats.describe(sgs_u.flatten()))
 
-    inp = create_mat_python(b,c,i,j)
-
-    u = inp[:,0].permute(1,2,0).numpy()
-    v = inp[:,1].permute(1,2,0).numpy()
-    mask_u = np.ones_like(u).astype('float32')
-    mask_v = np.ones_like(v).astype('float32')
-
-    n_u, n_v = momentum_cnn(u, v, mask_u, mask_v, sampling=False)
-    print(f'Returned n_u : {n_u.shape} n_v : {n_v.shape}')
-    print('Max diff n_u', np.max(np.abs(n_u - n_u)),'- max diff n_v', np.max(np.abs(n_v - n_v)))
     print(f'Test successful')
