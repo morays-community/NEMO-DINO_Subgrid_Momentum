@@ -1,0 +1,3 @@
+[submodule "DINO_Subgrid_Momentum.GZ21/INFERENCES/ZB-DINO"]
+	path = DINO_Subgrid_Momentum.GZ21/INFERENCES/ZB-DINO
+	url = git@github.com:Etienne-Meunier/ZB-DINO.git

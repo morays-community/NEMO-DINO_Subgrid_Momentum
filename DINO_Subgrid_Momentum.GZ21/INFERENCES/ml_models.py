@@ -1,13 +1,19 @@
 import numpy as np
+from numpy.matrixlib import bmat
 import torch, einops
 import sys
-sys.path.append('gz21_ocean_momentum/src')
+sys.path.append('ZB-DINO')
 
-from gz21_cnn import FullyCNN
-import transforms as transforms
+from models.LitParamModel import LitParamModel
+from csvflowdatamodule.CsvDataModule import CsvDataModule
 
+from lightning.pytorch.cli import LightningCLI
 
-#       Utils 
+path_par_model ='ZB-DINO/config/model/simple2D.yaml'
+path_par_data ='ZB-DINO/config/data/subgrid_V1.yaml'
+path_model = 'ZB-DINO/weights/91xee3n1/checkpoints/last.ckpt'
+
+#       Utils
 # -----------------
 def Is_None(*inputs):
     """ Test presence of at least one None in inputs """
@@ -15,19 +21,13 @@ def Is_None(*inputs):
 
 
 @torch.no_grad()
-def model_loading(weights_path='weights/gz21_huggingface/low-resolution/files/trained_model.pth', device='cpu', padding='init_circular') :
-    net = FullyCNN(padding=padding)
-    try: # in-repo test or in local deployed config dir
-        model_weights = torch.load('trained_model.pth', map_location=device)
-    except:
-        model_weights = torch.load(weights_path , map_location=device)
-    transformation = transforms.SoftPlusTransform()
-    transformation.indices = [2, 3] # Careful if model change
-    net.final_transformation = transformation
-    net.load_state_dict(model_weights)
-    net.eval()
-    net.to(device)
-    return net
+def model_loading(weights_path=path_model, path_config_model=path_par_model, path_config_data=path_par_data, device='cpu') :
+    cli = LightningCLI(LitParamModel,
+                     datamodule_class=CsvDataModule,
+                     args=["-c", path_config_data, "-c", path_config_model], run=False)
+    cli.model.load_state_dict(torch.load(path_model, weights_only=True)['state_dict'])
+    cli.model.to(device)
+    return cli
 
 
 #       Main Model Routines
@@ -42,14 +42,9 @@ else:
 
 
 # Load model
-net = model_loading(padding='init_zeros' , device=device)
-# From https://github.com/chzhangudel/Forpy_CNN_GZ21/blob/smartsim/testNN.py
-u_scale= 10
-v_scale= 10
-Su_scale= 1e-7
-Sv_scale= 1e-7
+cli = model_loading(device=device)
 
-# Predictions    
+# Predictions
 @torch.no_grad()
 def momentum_cnn(u, v, mask_u, mask_v, sampling=True):
     """ Take as input u and v fields and return forcing fields using GZ (2021)
@@ -58,42 +53,43 @@ def momentum_cnn(u, v, mask_u, mask_v, sampling=True):
         u (i, j, k)
         v (i, j, k)
         mask_u (i j k)
-        mask_v (i j k)  
+        mask_v (i j k)
         sampling (bool) : to add random noise or not
-    Out : 
+    Out :
         Su (i j k)
         Sv (i j k)
     """
     if Is_None([u, v]):
         return None
     else:
-        global net, u_scale, v_scale, Su_scale, Sv_scale, device
-        # pack inputs
-        inp = einops.rearrange( [ torch.tensor(u_scale*u.astype(np.float32)*mask_u.astype(np.float32)).to(device) ,
-                                  torch.tensor(v_scale*v.astype(np.float32)*mask_v.astype(np.float32)).to(device) ], 'c i j k -> k c i j' )
+        global cli, u_scale, v_scale, Su_scale, Sv_scale, device
+
+        batch = {}
+
+        cvt = lambda f, mf : torch.tensor(einops.rearrange(f.astype(np.float32)*mf.astype(np.float32), 'i j k -> 1 k i j')).to(device)
+        batch['CoarsedU'] = cvt(u, mask_u)
+        batch['CoarsedV'] = cvt(v, mask_v)
+
+        batch = cli.datamodule.transforms.val.__call__(batch)
         # preds
-        r = net(inp)
-        Su_mu, Sv_mu, Su_p, Sv_p = r[:, 0], r[:, 1], r[:, 2], r[:, 3] # k i j
+        ret = cli.model(batch)
 
-        # subgrid forcing terms
-        u = Su_scale * ( Su_mu + torch.sqrt(1/Su_p)*torch.randn_like(Su_p)*sampling)
-        v = Sv_scale * ( Sv_mu + torch.sqrt(1/Sv_p)*torch.randn_like(Sv_p)*sampling)
-        if device.type == 'cuda':
-            u = u.cpu()
-            v = v.cpu()
-        u = einops.rearrange(u, 'k i j -> i j k').numpy()
-        v = einops.rearrange(v, 'k i j -> i j k').numpy()
+        # renormalize
+        ret = cli.datamodule.transforms.val.__uncall__(ret)
 
-        return u*mask_u , v*mask_v
-    
 
-if __name__ == '__main__' : 
+        cvtb = lambda f, mf : einops.rearrange(f.numpy(), ' 1 k i j -> i j k')*mf
+
+        return cvtb(ret['SgsU'], mask_u) , cvtb(ret['SgsV'], mask_v)
+
+
+if __name__ == '__main__' :
 
     b, c, i, j = 1, 2, 100, 200
-    def function_mat_python(b, c, i, j) : 
+    def function_mat_python(b, c, i, j) :
         return b*0.7 + c*0.1 + i*0.827 + j*0.193
 
-    def create_mat_python(b, c, i, j) : 
+    def create_mat_python(b, c, i, j) :
         inp = torch.zeros((b,c, i ,j))
         for bi in range(0,b):
             for ci in range(0,c) :
@@ -103,7 +99,7 @@ if __name__ == '__main__' :
         return inp
 
     inp = create_mat_python(b,c,i,j)
-    
+
     u = inp[:,0].permute(1,2,0).numpy()
     v = inp[:,1].permute(1,2,0).numpy()
     mask_u = np.ones_like(u).astype('float32')
