@@ -13,7 +13,7 @@ from lightning.pytorch.cli import LightningCLI
 
 path_par_model ='ZB-DINO/config/model/simple2D.yaml'
 path_par_data ='ZB-DINO/config/data/subgrid_V1.yaml'
-path_model = 'ZB-DINO/weights/91xee3n1/checkpoints/last.ckpt'
+path_model = 'ZB-DINO/weights/9fxvecvn/checkpoints/last.ckpt'
 
 #       Utils
 # -----------------
