@@ -1,14 +1,14 @@
-MODULE inffld
+MODULE pyfld
    !!======================================================================
-   !!                       ***  MODULE inffld  ***
-   !! Inferences module :   variables defined in core memory
+   !!                       ***  MODULE pyfld  ***
+   !! Python module :   variables defined in core memory
    !!======================================================================
-   !! History :  4.2  ! 2023-09  (A. Barge)  Original code
+   !! History :  4.2  ! 2025-11  (A. Barge)  Original code
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
-   !!   inffld_alloc : allocation of fields arrays for inferences module (infmod)
-   !!----------------------------------------------------------------------        
+   !!   pyfld_alloc : allocation of fields arrays for Python coupling module (pycpl)
+   !!----------------------------------------------------------------------
    !!=====================================================
    USE par_oce        ! ocean parameters
    USE lib_mpp        ! MPP library
@@ -16,46 +16,46 @@ MODULE inffld
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   inffld_alloc   ! routine called in infmod.F90
-   PUBLIC   inffld_dealloc ! routine called in infmod.F90
+   PUBLIC   pyfld_alloc   ! routine called in pycpl.F90
+   PUBLIC   pyfld_dealloc ! routine called in pycpl.F90
 
    !!----------------------------------------------------------------------
-   !!                    2D Inference Module fields
+   !!                    2D Python coupling Module fields
    !!----------------------------------------------------------------------
-   !!REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  :: ext_uf, ext_vf !: Outsourced subgrid momentum forcing fields 
+   !REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)  :: tmp_fld_2D    !: dummy field to store 2D fields
 
    !!----------------------------------------------------------------------
-   !!                    3D Inference Module fields
+   !!                    3D Python coupling Module fields
    !!----------------------------------------------------------------------
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  :: ext_uf, ext_vf !: Outsourced subgrid momentum forcing fields 
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  :: ext_uf, ext_vf  !: dummy field to store 3D fields
 
 CONTAINS
 
-   INTEGER FUNCTION inffld_alloc()
+   INTEGER FUNCTION pyfld_alloc()
       !!---------------------------------------------------------------------
-      !!                  ***  FUNCTION inffld_alloc  ***
+      !!                  ***  FUNCTION pyfld_alloc  ***
       !!---------------------------------------------------------------------
       INTEGER :: ierr
       !!---------------------------------------------------------------------
       ierr = 0
       !
       ALLOCATE( ext_uf(jpi,jpj,jpk) , ext_vf(jpi,jpj,jpk)  , STAT=ierr )
-      inffld_alloc = ierr
+      pyfld_alloc = ierr
       !
    END FUNCTION
 
    
-   INTEGER FUNCTION inffld_dealloc()
+   INTEGER FUNCTION pyfld_dealloc()
       !!---------------------------------------------------------------------
-      !!                  ***  FUNCTION inffld_dealloc  ***
+      !!                  ***  FUNCTION pyfld_dealloc  ***
       !!---------------------------------------------------------------------
       INTEGER :: ierr
       !!---------------------------------------------------------------------
       ierr = 0
       !
       DEALLOCATE( ext_uf , ext_vf  , STAT=ierr )
-      inffld_dealloc = ierr
+      pyfld_dealloc = ierr
       !
    END FUNCTION
 
-END MODULE inffld
+END MODULE pyfld
