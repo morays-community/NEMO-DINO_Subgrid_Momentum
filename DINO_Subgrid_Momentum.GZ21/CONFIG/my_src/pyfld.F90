@@ -10,8 +10,12 @@ MODULE pyfld
    !!   pyfld_alloc : allocation of fields arrays for Python coupling module (pycpl)
    !!----------------------------------------------------------------------
    !!=====================================================
+   USE oce            ! ocean fields
+   USE dom_oce        ! ocean metrics fields
    USE par_oce        ! ocean parameters
    USE lib_mpp        ! MPP library
+   USE pycpl          ! Python coupling module
+   USE iom
 
    IMPLICIT NONE
    PRIVATE
@@ -27,35 +31,56 @@ MODULE pyfld
    !!----------------------------------------------------------------------
    !!                    3D Python coupling Module fields
    !!----------------------------------------------------------------------
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  :: ext_uf, ext_vf  !: dummy field to store 3D fields
+   REAL(wp), PUBLIC, SAVE, DIMENSION(jpi,jpj,jpk)  :: ext_uf, ext_vf  !: dummy field to store 3D fields
 
 CONTAINS
 
-   INTEGER FUNCTION pyfld_alloc()
-      !!---------------------------------------------------------------------
-      !!                  ***  FUNCTION pyfld_alloc  ***
-      !!---------------------------------------------------------------------
-      INTEGER :: ierr
-      !!---------------------------------------------------------------------
-      ierr = 0
+   SUBROUTINE inputs_gz21( kt )
+      !!----------------------------------------------------------------------
+      !!             ***  ROUTINE inputs_gz21  ***
+      !!
+      !! ** Purpose :   send inputs fileds for gz21 model
+      !!
+      !! ** Method  :   *
+      !!                *
+      !!----------------------------------------------------------------------
+      INTEGER, INTENT(in) ::   kt            ! ocean time step
+      !!----------------------------------------------------------------------
       !
-      ALLOCATE( ext_uf(jpi,jpj,jpk) , ext_vf(jpi,jpj,jpk)  , STAT=ierr )
-      pyfld_alloc = ierr
+      ! send velocities and masks
+      CALL send_to_python( 'u', uu(:,:,:,Nbb), kt )    ! Send fields to Python models
+      CALL send_to_python( 'v', vv(:,:,:,Nbb), kt )    ! Send fields to Python models
+      CALL send_to_python( 'mask_u', umask, kt )    ! Send fields to Python models
+      CALL send_to_python( 'mask_v', vmask, kt )    ! Send fields to Python models
       !
-   END FUNCTION
+   END SUBROUTINE inputs_gz21
 
-   
-   INTEGER FUNCTION pyfld_dealloc()
-      !!---------------------------------------------------------------------
-      !!                  ***  FUNCTION pyfld_dealloc  ***
-      !!---------------------------------------------------------------------
-      INTEGER :: ierr
-      !!---------------------------------------------------------------------
-      ierr = 0
+
+   SUBROUTINE update_from_gz21( kt )
+      !!----------------------------------------------------------------------
+      !!             ***  ROUTINE update_from_gz21  ***
+      !!
+      !! ** Purpose :   update the ocean data with the coupled GZ21 models
+      !!
+      !! ** Method  :   *
+      !!                *
+      !!----------------------------------------------------------------------
+      INTEGER, INTENT(in) ::   kt            ! ocean time step
+      !!----------------------------------------------------------------------
       !
-      DEALLOCATE( ext_uf , ext_vf  , STAT=ierr )
-      pyfld_dealloc = ierr
+      ! Proceed receptions
+      CALL receive_from_python( 'u_f', ext_uf, kstp )  ! Add forcing from Python models ==> RHS
+      CALL receive_from_python( 'v_f', ext_vf, kstp )  ! Add forcing from Python models ==> RHS
       !
-   END FUNCTION
+      ! update ocean
+      uu(:,:,:,Nrhs) = uu(:,:,:,Nrhs) + ext_uf(:,:,:)
+      vv(:,:,:,Nrhs) = vv(:,:,:,Nrhs) + ext_vf(:,:,:)
+      !
+      ! Outputs results
+      CALL iom_put( 'ext_uf', ext_uf(:,:,1) )
+      CALL iom_put( 'ext_vf', ext_vf(:,:,1) )
+     !
+   END SUBROUTINE  update_from_gz21
+  
 
 END MODULE pyfld
