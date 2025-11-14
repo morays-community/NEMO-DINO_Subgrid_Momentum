@@ -18,10 +18,7 @@ MODULE pyfld
    USE iom
 
    IMPLICIT NONE
-   PRIVATE
-
-   PUBLIC   pyfld_alloc   ! routine called in pycpl.F90
-   PUBLIC   pyfld_dealloc ! routine called in pycpl.F90
+   PUBLIC
 
    !!----------------------------------------------------------------------
    !!                    2D Python coupling Module fields
@@ -31,11 +28,49 @@ MODULE pyfld
    !!----------------------------------------------------------------------
    !!                    3D Python coupling Module fields
    !!----------------------------------------------------------------------
-   REAL(wp), PUBLIC, SAVE, DIMENSION(jpi,jpj,jpk)  :: ext_uf, ext_vf  !: dummy field to store 3D fields
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  :: ext_uf, ext_vf  !: dummy field to store 3D fields
 
 CONTAINS
 
-   SUBROUTINE inputs_gz21( kt )
+   SUBROUTINE init_python_fields()
+      !!----------------------------------------------------------------------
+      !!             ***  ROUTINE init_python_fields  ***
+      !!
+      !! ** Purpose :   Initialisation of the Python module
+      !!
+      !! ** Method  :   * Allocate arrays for Python fields
+      !!                * Configure Python coupling
+      !!----------------------------------------------------------------------
+      !
+      ! Allocate fields
+      ALLOCATE( ext_uf(jpi,jpj,jpk) , ext_vf(jpi,jpj,jpk) )
+      !
+      ! configure coupling
+      CALL init_python_coupling()
+      !
+   END SUBROUTINE init_python_fields
+
+
+   SUBROUTINE finalize_python_fields()
+      !!----------------------------------------------------------------------
+      !!             ***  ROUTINE finalize_python_fields  ***
+      !!
+      !! ** Purpose :   Free memory used by Python module
+      !!
+      !! ** Method  :   * deallocate arrays for Python fields
+      !!                * deallocate Python coupling
+      !!----------------------------------------------------------------------
+      !
+      ! Free memory
+      DEALLOCATE( ext_uf, ext_vf )
+      !
+      ! terminate coupling environment
+      CALL finalize_python_coupling()
+      !
+   END SUBROUTINE finalize_python_fields
+
+
+   SUBROUTINE inputs_gz21( kt, Nbb )
       !!----------------------------------------------------------------------
       !!             ***  ROUTINE inputs_gz21  ***
       !!
@@ -45,6 +80,7 @@ CONTAINS
       !!                *
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt            ! ocean time step
+      INTEGER, INTENT(in) ::   Nbb           ! time index
       !!----------------------------------------------------------------------
       !
       ! send velocities and masks
@@ -55,8 +91,7 @@ CONTAINS
       !
    END SUBROUTINE inputs_gz21
 
-
-   SUBROUTINE update_from_gz21( kt )
+   SUBROUTINE update_from_gz21( kt, Nrhs )
       !!----------------------------------------------------------------------
       !!             ***  ROUTINE update_from_gz21  ***
       !!
@@ -66,11 +101,12 @@ CONTAINS
       !!                *
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt            ! ocean time step
+      INTEGER, INTENT(in) ::   Nrhs          ! time index
       !!----------------------------------------------------------------------
       !
       ! Proceed receptions
-      CALL receive_from_python( 'u_f', ext_uf, kstp )  ! Add forcing from Python models ==> RHS
-      CALL receive_from_python( 'v_f', ext_vf, kstp )  ! Add forcing from Python models ==> RHS
+      CALL receive_from_python( 'u_f', ext_uf, kt )
+      CALL receive_from_python( 'v_f', ext_vf, kt )
       !
       ! update ocean
       uu(:,:,:,Nrhs) = uu(:,:,:,Nrhs) + ext_uf(:,:,:)
@@ -80,7 +116,6 @@ CONTAINS
       CALL iom_put( 'ext_uf', ext_uf(:,:,1) )
       CALL iom_put( 'ext_vf', ext_vf(:,:,1) )
      !
-   END SUBROUTINE  update_from_gz21
-  
+   END SUBROUTINE update_from_gz21
 
 END MODULE pyfld
