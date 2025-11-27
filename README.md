@@ -20,7 +20,7 @@
 
 ### Python
 
-- Eophis version : [v1.0.0](https://github.com/alexis-barge/eophis/tree/v1.0.0)
+- Eophis version : [v1.1.0](https://github.com/alexis-barge/eophis/tree/v1.1.0)
 - **GZ21** dependencies:
   ```bash
   cd DINO_Subgrid_Momentum.GZ21/INFERENCES/gz21_ocean_momentum

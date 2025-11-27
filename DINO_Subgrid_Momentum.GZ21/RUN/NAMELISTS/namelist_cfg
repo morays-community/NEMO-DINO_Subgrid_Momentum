@@ -452,9 +452,3 @@
 &namsto        ! Stochastic parametrization of EOS                      (default: OFF)
 !-----------------------------------------------------------------------
 /
-!-----------------------------------------------------------------------
-&naminf        ! Inferences models                      (default: OFF)
-!-----------------------------------------------------------------------
-   ln_inf  = .true.       ! activate module for inference models
-   nn_lvl = 36            ! number of grid level on which apply the inference model
-/

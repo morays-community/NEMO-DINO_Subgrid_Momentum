@@ -8,7 +8,8 @@ import os
 def ocean_info():
     # ocean namelist
     nemo_nml = eophis.FortranNamelist(os.path.join(os.getcwd(),'namelist_cfg'))
-    step,nlvl = nemo_nml.get('rn_Dt','nn_lvl')
+    step,  = nemo_nml.get('rn_Dt')
+    nlvl = 36
 
     # coupling config
     tunnel_config = list()

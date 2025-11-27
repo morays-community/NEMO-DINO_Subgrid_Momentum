@@ -159,7 +159,7 @@ CONTAINS
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! Update external forcing (tides, open boundaries, ice shelf interaction and surface boundary condition (including sea-ice)
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                         CALL inferences_send( kstp, Nbb, uu, vv )    ! Send fields to inference models
+                         CALL inputs_gz21( kstp, Nbb )                ! Send inputs to external python model
       IF( ln_tide    )   CALL tide_update( kstp )                     ! update tide potential
       IF( ln_apr_dyn )   CALL sbc_apr ( kstp )                        ! atmospheric pressure (NB: call before bdy_dta which needs ssh_ib)
       IF( ln_bdy     )   CALL bdy_dta ( kstp, Nnn )                   ! update dynamic & tracer data at open boundaries
@@ -262,7 +262,7 @@ CONTAINS
                             CALL dyn_adv( kstp, Nbb, Nnn      , uu, vv, Nrhs )  ! advection (VF or FF)	==> RHS
                             CALL dyn_vor( kstp,      Nnn      , uu, vv, Nrhs )  ! vorticity           	==> RHS
                             CALL dyn_ldf( kstp, Nbb, Nnn      , uu, vv, Nrhs )  ! lateral mixing
-                            CALL inferences_rcv( kstp         , uu, vv, Nrhs )  ! Add forcing from inference models ==> RHS
+                            CALL update_from_gz21( kstp, Nrhs                )  ! Add forcing from Python models
          IF( ln_zdfosm  )   CALL dyn_osm( kstp,      Nnn      , uu, vv, Nrhs )  ! OSMOSIS non-local velocity fluxes ==> RHS
                             CALL dyn_hpg( kstp,      Nnn      , uu, vv, Nrhs )  ! horizontal gradient of Hydrostatic pressure
       END DO
