@@ -1,6 +1,6 @@
 # DINO Subgrid Momentum
 
-[![DOI](https://zenodo.org/badge/776021044.svg)](https://doi.org/10.5281/zenodo.13851911)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18244649.svg)](https://doi.org/10.5281/zenodo.18244649)
 
 ## Context and Motivation
 
